@@ -1,0 +1,60 @@
+services:
+  postgres-producer:
+    restart: always
+    ports: []
+
+  postgres-inventory:
+    restart: always
+    ports: []
+
+  postgres-payment:
+    restart: always
+    ports: []
+
+  postgres-notification:
+    restart: always
+    ports: []
+
+  ibm-mq:
+    restart: always
+    ports: []
+
+  order-producer-service:
+    image: your-registry/order-saga-producer:latest
+    build: null
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: "0.75"
+          memory: 512M
+
+  order-inventory-service:
+    image: your-registry/order-saga-inventory:latest
+    build: null
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: "0.75"
+          memory: 512M
+
+  order-payment-service:
+    image: your-registry/order-saga-payment:latest
+    build: null
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: "0.75"
+          memory: 512M
+
+  order-notification-service:
+    image: your-registry/order-saga-notification:latest
+    build: null
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 384M

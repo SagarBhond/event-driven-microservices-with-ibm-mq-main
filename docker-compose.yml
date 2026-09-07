@@ -1,0 +1,137 @@
+services:
+  postgres:
+    image: postgres:13
+    container_name: order-saga-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: producer_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d producer_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  ibm-mq:
+    image: icr.io/ibm-messaging/mq:latest
+    platform: linux/amd64
+    container_name: order-saga-mq
+    environment:
+      LICENSE: accept
+      MQ_QMGR_NAME: QM1
+      MQ_APP_PASSWORD: ${MQ_APP_PASSWORD:-passw0rd}
+      MQ_ADMIN_PASSWORD: ${MQ_ADMIN_PASSWORD:-passw0rd}
+    ports:
+      - "1414:1414"
+      - "9443:9443"
+    volumes:
+      - mq-data:/mnt/mqm
+      - ./mq-config/20-queues.mqsc:/etc/mqm/20-queues.mqsc:ro
+    healthcheck:
+      test: ["CMD-SHELL", "dspmq -m QM1 | grep -Eqi 'STATUS\\((Running|RUNNING)\\)' "]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 45s
+
+  order-producer-service:
+    build:
+      context: ./order-producer-service
+    container_name: order-producer-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ibm-mq:
+        condition: service_healthy
+    environment:
+      MQ_HOST: ibm-mq
+      MQ_PORT: 1414
+      MQ_USER: app
+      MQ_PASSWORD: ${MQ_APP_PASSWORD:-passw0rd}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: producer_db
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/producer_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "8080:8080"
+
+  order-inventory-service:
+    build:
+      context: ./order-inventory-service
+    container_name: order-inventory-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ibm-mq:
+        condition: service_healthy
+    environment:
+      MQ_HOST: ibm-mq
+      MQ_PORT: 1414
+      MQ_USER: app
+      MQ_PASSWORD: ${MQ_APP_PASSWORD:-passw0rd}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: inventory_db
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/inventory_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "8081:8081"
+
+  order-payment-service:
+    build:
+      context: ./order-payment-service
+    container_name: order-payment-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ibm-mq:
+        condition: service_healthy
+    environment:
+      MQ_HOST: ibm-mq
+      MQ_PORT: 1414
+      MQ_USER: app
+      MQ_PASSWORD: ${MQ_APP_PASSWORD:-passw0rd}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: payment_db
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/payment_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "8082:8082"
+
+  order-notification-service:
+    build:
+      context: ./order-notification-service
+    container_name: order-notification-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ibm-mq:
+        condition: service_healthy
+    environment:
+      MQ_HOST: ibm-mq
+      MQ_PORT: 1414
+      MQ_USER: app
+      MQ_PASSWORD: ${MQ_APP_PASSWORD:-passw0rd}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: notification_db
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/notification_db
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "8083:8083"
+
+volumes:
+  postgres-data:
+  mq-data:

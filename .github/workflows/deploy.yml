@@ -1,0 +1,72 @@
+name: Deploy order saga
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'order-producer-service/**'
+      - 'order-inventory-service/**'
+      - 'order-payment-service/**'
+      - 'order-notification-service/**'
+      - '.github/workflows/deploy.yml'
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ap-south-1
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-order-saga-role
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push images
+        shell: bash
+        run: |
+          set -euo pipefail
+          services=(producer inventory payment notification)
+          for svc in "${services[@]}"; do
+            case "$svc" in
+              producer) app_dir="order-producer-service"; image_name="order-saga-producer" ;;
+              inventory) app_dir="order-inventory-service"; image_name="order-saga-inventory" ;;
+              payment) app_dir="order-payment-service"; image_name="order-saga-payment" ;;
+              notification) app_dir="order-notification-service"; image_name="order-saga-notification" ;;
+            esac
+
+            repo_uri="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${AWS_REGION}.amazonaws.com/${image_name}"
+
+            cd "$app_dir"
+            mvn clean package -Dmaven.test.skip=true
+            docker build -t "$image_name:latest" .
+            docker tag "$image_name:latest" "$repo_uri:latest"
+            docker push "$repo_uri:latest"
+            cd ..
+          done
+
+      - name: Force ECS redeploy for all services
+        shell: bash
+        run: |
+          set -euo pipefail
+          services=(order-saga-producer order-saga-inventory order-saga-payment order-saga-notification)
+          for svc in "${services[@]}"; do
+            aws ecs update-service \
+              --cluster order-saga-cluster \
+              --service "$svc" \
+              --force-new-deployment \
+              --region "$AWS_REGION"
+          done
