@@ -63,7 +63,7 @@ resource "aws_instance" "mq" {
   key_name               = var.key_name
   vpc_security_group_ids = [aws_security_group.mq.id]
 
-  user_data = templatefile("${path.module}/scripts/mq_user_data.sh", {
+  user_data = templatefile("${path.module}/scripts/IBM_MQ_user_data.sh", {
     aws_region    = var.aws_region,
     mqsc_content  = local.mqsc_content,
     mq_password   = aws_ssm_parameter.mq_password.value,

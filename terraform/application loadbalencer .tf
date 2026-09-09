@@ -179,3 +179,35 @@ resource "aws_lb_listener_rule" "notification" {
     }
   }
 }
+
+resource "aws_lb_listener_rule" "inventory_swagger" {
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 200
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.inventory.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/swagger-ui/*"]
+    }
+  }
+}
+
+resource "aws_lb_listener_rule" "inventory_openapi" {
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 210
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.inventory.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/v3/api-docs", "/v3/api-docs/*"]
+    }
+  }
+}

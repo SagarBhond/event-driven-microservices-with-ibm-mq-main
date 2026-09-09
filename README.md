@@ -132,11 +132,21 @@ http://localhost:8081/swagger-ui/index.html
 ```
 
 The fragment `#/order-controller/create` is not an operation in the current
-inventory controller. IBM MQ port `1414` is an MQ client protocol port, not an
-HTTP page. Use the IBM MQ Web Console at:
+inventory controller. Do not open IBM MQ port `1414` as an HTTP page. Port
+`1414` is the native IBM MQ client protocol and is healthy when MQ clients
+connect to it. Use the browser-based IBM MQ Web Console on port `9443`:
 ```text
 https://localhost:9443/ibmmq/console
 ```
+
+Do not open PostgreSQL port `5432` in a browser. It is the native PostgreSQL
+protocol, not HTTP. Connect with a PostgreSQL client instead:
+```bash
+psql -h localhost -p 5432 -U postgres -d producer_db
+```
+
+The local stack uses one PostgreSQL container on port `5432` with the
+databases `producer_db`, `inventory_db`, `payment_db`, and `notification_db`.
 
 ## Try it
 
