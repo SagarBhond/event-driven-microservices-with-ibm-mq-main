@@ -2,8 +2,7 @@
 set -euxo pipefail
 
 yum update -y
-amazon-linux-extras enable docker
-yum install -y docker jq
+dnf install -y docker jq
 systemctl enable docker
 systemctl start docker
 
@@ -15,13 +14,16 @@ if [ ! -e /swapfile ]; then
   echo '/swapfile none swap sw 0 0' >> /etc/fstab
 fi
 
-if ! blkid /dev/sdf >/dev/null 2>&1; then
-  mkfs -t ext4 /dev/sdf
+data_device=$(lsblk -ndo NAME,TYPE | awk '$2 == "disk" && $1 != "nvme0n1" { print "/dev/" $1; exit }')
+if [ -n "$data_device" ] && ! blkid "$data_device" >/dev/null 2>&1; then
+  mkfs -t ext4 "$data_device"
 fi
 mkdir -p /mnt/mqm
-mount /dev/sdf /mnt/mqm || true
-if ! grep -q '/mnt/mqm' /etc/fstab; then
-  echo '/dev/sdf /mnt/mqm ext4 defaults,nofail 0 2' >> /etc/fstab
+if [ -n "$data_device" ]; then
+  mount "$data_device" /mnt/mqm || true
+fi
+if [ -n "$data_device" ] && ! grep -q '/mnt/mqm' /etc/fstab; then
+  echo "$data_device /mnt/mqm ext4 defaults,nofail 0 2" >> /etc/fstab
 fi
 chown 1001:1001 /mnt/mqm
 chmod 755 /mnt/mqm

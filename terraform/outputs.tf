@@ -13,9 +13,19 @@ output "mq_public_ip" {
   value       = aws_instance.mq.public_ip
 }
 
+output "mq_admin_url" {
+  description = "IBM MQ Admin Console URL"
+  value       = "https://${aws_instance.mq.public_ip}:9443"
+}
+
 output "pgadmin_public_ip" {
   description = "The public IP address of the pgAdmin instance"
   value       = aws_instance.pgadmin.public_ip
+}
+
+output "pgadmin_url" {
+  description = "pgAdmin Web UI URL"
+  value       = "http://${aws_instance.pgadmin.public_ip}:5050"
 }
 
 output "rds_endpoint" {
