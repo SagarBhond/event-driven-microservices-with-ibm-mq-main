@@ -62,7 +62,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          services=(order-saga-producer order-saga-inventory order-saga-payment order-saga-notification)
+          services=(order-saga-producer-service order-saga-inventory-service order-saga-payment-service order-saga-notification-service)
           for svc in "${services[@]}"; do
             aws ecs update-service \
               --cluster order-saga-cluster \
