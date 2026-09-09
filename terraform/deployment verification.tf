@@ -7,8 +7,8 @@ resource "terraform_data" "deployment_verification" {
   ]
 
   provisioner "local-exec" {
-    command     = "${path.module}/verify-deployment.ps1 -AlbDnsName '${aws_lb.main.dns_name}'"
-    interpreter = ["PowerShell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File"]
+    command     = "& '${path.module}/verify-deployment.ps1' -AlbDnsName '${aws_lb.main.dns_name}'"
+    interpreter = ["PowerShell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command"]
   }
 
   depends_on = [aws_ecs_service.service]
