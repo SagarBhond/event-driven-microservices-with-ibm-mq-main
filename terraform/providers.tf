@@ -1,12 +1,11 @@
 terraform {
-  required_version = ">= 1.5.0"
-
   required_providers {
     aws = {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
   }
+  required_version = ">= 1.5.0"
 }
 
 provider "aws" {
@@ -14,8 +13,9 @@ provider "aws" {
 
   default_tags {
     tags = {
-      Project   = "order-saga"
-      ManagedBy = "terraform"
+      Environment = "POC"
+      Project     = "OrderSaga"
+      ManagedBy   = "Terraform"
     }
   }
 }

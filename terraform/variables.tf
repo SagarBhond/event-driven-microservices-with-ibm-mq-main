@@ -1,5 +1,5 @@
 variable "aws_region" {
-  description = "AWS region for the order-saga deployment"
+  description = "AWS region for the deployment"
   type        = string
   default     = "ap-south-1"
 }
@@ -11,50 +11,18 @@ variable "vpc_cidr" {
 }
 
 variable "your_ip" {
-  description = "CIDR allowed to reach admin endpoints such as SSH, MQ console, and pgAdmin"
+  description = "Your IP address for SSH and IBM MQ Admin Console access (e.g. 203.0.113.1/32)"
   type        = string
-  default     = "203.0.113.10/32"
+  default     = "0.0.0.0/0" # Change to your actual IP for better security
 }
 
 variable "key_name" {
-  description = "Existing EC2 key pair name for SSH access"
+  description = "Name of the EC2 Key Pair for SSH access to the IBM MQ instance"
   type        = string
-  default     = "order-saga-key"
+  default     = "pro"
 }
 
-variable "app_port_producer" {
-  description = "Port for the order producer service"
-  type        = number
-  default     = 8080
-}
-
-variable "app_port_inventory" {
-  description = "Port for the inventory service"
-  type        = number
-  default     = 8081
-}
-
-variable "app_port_payment" {
-  description = "Port for the payment service"
-  type        = number
-  default     = 8082
-}
-
-variable "app_port_notification" {
-  description = "Port for the notification service"
-  type        = number
-  default     = 8083
-}
-
-variable "db_username" {
-  description = "Database admin username"
-  type        = string
-  default     = "postgres"
-}
-
-variable "db_password" {
-  description = "Initial database password. Replace via SSM after apply if needed."
-  type        = string
-  default     = "ChangeMe123!"
-  sensitive   = true
-}
+variable "app_port_producer" { default = 8080 }
+variable "app_port_inventory" { default = 8081 }
+variable "app_port_payment" { default = 8082 }
+variable "app_port_notification" { default = 8083 }

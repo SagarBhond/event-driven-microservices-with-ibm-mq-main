@@ -1,119 +1,222 @@
-data "aws_availability_zones" "available" {
-  state = "available"
-}
-
+# VPC
 resource "aws_vpc" "main" {
   cidr_block           = var.vpc_cidr
   enable_dns_hostnames = true
   enable_dns_support   = true
-
-  tags = {
-    Name = "order-saga-vpc"
-  }
+  tags                 = { Name = "order-saga-vpc" }
 }
 
-resource "aws_internet_gateway" "main" {
+# Internet Gateway
+resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.main.id
-
-  tags = {
-    Name = "order-saga-igw"
-  }
+  tags   = { Name = "order-saga-igw" }
 }
 
-locals {
-  azs = slice(data.aws_availability_zones.available.names, 0, 2)
-
-  public_subnets = [
-    cidrsubnet(aws_vpc.main.cidr_block, 8, 0),
-    cidrsubnet(aws_vpc.main.cidr_block, 8, 1),
-  ]
-
-  private_subnets = [
-    cidrsubnet(aws_vpc.main.cidr_block, 8, 10),
-    cidrsubnet(aws_vpc.main.cidr_block, 8, 11),
-  ]
+data "aws_availability_zones" "available" {
+  state = "available"
 }
 
+# Public Subnets (for ALB, ECS Fargate with public IPs, and EC2 IBM MQ)
 resource "aws_subnet" "public" {
-  count = length(local.public_subnets)
-
+  count                   = 2
   vpc_id                  = aws_vpc.main.id
-  cidr_block              = local.public_subnets[count.index]
-  availability_zone       = local.azs[count.index]
+  cidr_block              = cidrsubnet(var.vpc_cidr, 8, count.index + 1)
+  availability_zone       = data.aws_availability_zones.available.names[count.index]
   map_public_ip_on_launch = true
-
-  tags = {
-    Name = "order-saga-public-${count.index + 1}"
-  }
+  tags                    = { Name = "order-saga-public-subnet-${count.index + 1}" }
 }
 
-resource "aws_subnet" "private" {
-  count = length(local.private_subnets)
-
+# Private Subnets (for RDS isolated databases)
+resource "aws_subnet" "private_db" {
+  count             = 2
   vpc_id            = aws_vpc.main.id
-  cidr_block        = local.private_subnets[count.index]
-  availability_zone = local.azs[count.index]
-
-  tags = {
-    Name = "order-saga-private-${count.index + 1}"
-  }
+  cidr_block        = cidrsubnet(var.vpc_cidr, 8, count.index + 20)
+  availability_zone = data.aws_availability_zones.available.names[count.index]
+  tags              = { Name = "order-saga-private-db-subnet-${count.index + 1}" }
 }
 
+# Public Route Table
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.main.id
-
   route {
     cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.main.id
+    gateway_id = aws_internet_gateway.igw.id
   }
-
-  tags = {
-    Name = "order-saga-public-rt"
-  }
+  tags = { Name = "order-saga-public-rt" }
 }
 
 resource "aws_route_table_association" "public" {
-  count = length(aws_subnet.public)
-
+  count          = 2
   subnet_id      = aws_subnet.public[count.index].id
   route_table_id = aws_route_table.public.id
 }
 
-resource "aws_eip" "nat" {
-  domain = "vpc"
+# ----------------- SECURITY GROUPS -----------------
 
-  tags = {
-    Name = "order-saga-nat-eip"
+# ALB Security Group
+resource "aws_security_group" "alb" {
+  name        = "order-saga-alb-sg"
+  description = "Allow inbound HTTPS/HTTP"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    description = "HTTPS"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "HTTP"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 }
 
-resource "aws_nat_gateway" "main" {
-  allocation_id = aws_eip.nat.id
-  subnet_id     = aws_subnet.public[0].id
-
-  tags = {
-    Name = "order-saga-nat"
+# ECS Security Groups (One for each service)
+resource "aws_security_group" "ecs" {
+  for_each = {
+    producer     = var.app_port_producer
+    inventory    = var.app_port_inventory
+    payment      = var.app_port_payment
+    notification = var.app_port_notification
   }
 
-  depends_on = [aws_internet_gateway.main]
+  name        = "order-saga-ecs-${each.key}-sg"
+  description = "Security group for ${each.key} service"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    description     = "Allow HTTP traffic from ALB"
+    from_port       = each.value
+    to_port         = each.value
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb.id]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 }
 
-resource "aws_route_table" "private" {
-  vpc_id = aws_vpc.main.id
+# IBM MQ Security Group
+resource "aws_security_group" "mq" {
+  name        = "order-saga-mq-sg"
+  description = "Security group for IBM MQ on EC2"
+  vpc_id      = aws_vpc.main.id
 
-  route {
-    cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = aws_nat_gateway.main.id
+  ingress {
+    description = "JMS connections from all ECS services"
+    from_port   = 1414
+    to_port     = 1414
+    protocol    = "tcp"
+    security_groups = [
+      aws_security_group.ecs["producer"].id,
+      aws_security_group.ecs["inventory"].id,
+      aws_security_group.ecs["payment"].id,
+      aws_security_group.ecs["notification"].id
+    ]
   }
 
-  tags = {
-    Name = "order-saga-private-rt"
+  ingress {
+    description = "IBM MQ Admin Console"
+    from_port   = 9443
+    to_port     = 9443
+    protocol    = "tcp"
+    cidr_blocks = [var.your_ip]
+  }
+
+  ingress {
+    description = "SSH access"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = [var.your_ip]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 }
 
-resource "aws_route_table_association" "private" {
-  count = length(aws_subnet.private)
+# pgAdmin Security Group
+resource "aws_security_group" "pgadmin" {
+  name        = "order-saga-pgadmin-sg"
+  description = "Security group for pgAdmin on EC2"
+  vpc_id      = aws_vpc.main.id
 
-  subnet_id      = aws_subnet.private[count.index].id
-  route_table_id = aws_route_table.private.id
+  ingress {
+    description = "pgAdmin Web UI"
+    from_port   = 5050
+    to_port     = 5050
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "SSH access"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = [var.your_ip]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+# RDS Security Group (single shared instance)
+resource "aws_security_group" "rds" {
+  name        = "order-saga-rds-sg"
+  description = "Security group for the shared RDS database"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    description = "PostgreSQL from all ECS services"
+    from_port   = 5432
+    to_port     = 5432
+    protocol    = "tcp"
+    security_groups = [
+      aws_security_group.ecs["producer"].id,
+      aws_security_group.ecs["inventory"].id,
+      aws_security_group.ecs["payment"].id,
+      aws_security_group.ecs["notification"].id
+    ]
+  }
+
+  ingress {
+    description     = "PostgreSQL from MQ Bastion host"
+    from_port       = 5432
+    to_port         = 5432
+    protocol        = "tcp"
+    security_groups = [aws_security_group.mq.id]
+  }
+
+  ingress {
+    description     = "PostgreSQL from pgAdmin host"
+    from_port       = 5432
+    to_port         = 5432
+    protocol        = "tcp"
+    security_groups = [aws_security_group.pgadmin.id]
+  }
 }

@@ -1,15 +1,25 @@
-resource "terraform_data" "deployment_verification" {
-  triggers_replace = [
-    aws_ecs_service.service["producer"].id,
-    aws_ecs_service.service["inventory"].id,
-    aws_ecs_service.service["payment"].id,
-    aws_ecs_service.service["notification"].id,
-  ]
+locals {
+  ecr_repos = toset(["producer", "inventory", "payment", "notification"])
+}
 
-  provisioner "local-exec" {
-    command     = "& '${path.module}/verify-deployment.ps1' -AlbDnsName '${aws_lb.main.dns_name}'"
-    interpreter = ["PowerShell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command"]
+resource "aws_ecr_repository" "app" {
+  for_each = local.ecr_repos
+
+  name                 = "order-saga-${each.key}"
+  image_tag_mutability = "MUTABLE"
+
+  force_delete = true # Useful for POC teardown
+
+  image_scanning_configuration {
+    scan_on_push = true
   }
 
-  depends_on = [aws_ecs_service.service]
+  tags = { Name = "order-saga-${each.key}-ecr" }
+}
+
+output "ecr_repository_urls" {
+  description = "The URLs of the ECR repositories"
+  value = {
+    for k, v in aws_ecr_repository.app : k => v.repository_url
+  }
 }

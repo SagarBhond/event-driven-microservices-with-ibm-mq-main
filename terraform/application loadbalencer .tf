@@ -1,213 +1,79 @@
-resource "aws_security_group" "alb" {
-  name        = "order-saga-alb-sg"
-  description = "Allow HTTP traffic to the ALB"
-  vpc_id      = aws_vpc.main.id
-
-  ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-}
-
+# Application Load Balancer
 resource "aws_lb" "main" {
   name               = "order-saga-alb"
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb.id]
-  subnets            = aws_subnet.public[*].id
+  subnets            = [for s in aws_subnet.public : s.id]
 
-  tags = {
-    Name = "order-saga-alb"
-  }
+  enable_deletion_protection = false
+
+  tags = { Name = "order-saga-alb" }
 }
 
-resource "aws_lb_target_group" "producer" {
-  name        = "order-saga-producer-tg"
-  port        = var.app_port_producer
-  protocol    = "HTTP"
-  target_type = "ip"
-  vpc_id      = aws_vpc.main.id
-
-  health_check {
-    enabled  = true
-    path     = "/api/producer/health"
-    matcher  = "200"
-    port     = var.app_port_producer
-    protocol = "HTTP"
-  }
-}
-
-resource "aws_lb_target_group" "inventory" {
-  name        = "order-saga-inventory-tg"
-  port        = var.app_port_inventory
-  protocol    = "HTTP"
-  target_type = "ip"
-  vpc_id      = aws_vpc.main.id
-
-  health_check {
-    enabled  = true
-    path     = "/api/inventory/health"
-    matcher  = "200"
-    port     = var.app_port_inventory
-    protocol = "HTTP"
-  }
-}
-
-resource "aws_lb_target_group" "payment" {
-  name        = "order-saga-payment-tg"
-  port        = var.app_port_payment
-  protocol    = "HTTP"
-  target_type = "ip"
-  vpc_id      = aws_vpc.main.id
-
-  health_check {
-    enabled  = true
-    path     = "/api/payment/health"
-    matcher  = "200"
-    port     = var.app_port_payment
-    protocol = "HTTP"
-  }
-}
-
-resource "aws_lb_target_group" "notification" {
-  name        = "order-saga-notification-tg"
-  port        = var.app_port_notification
-  protocol    = "HTTP"
-  target_type = "ip"
-  vpc_id      = aws_vpc.main.id
-
-  health_check {
-    enabled  = true
-    path     = "/api/notification/health"
-    matcher  = "200"
-    port     = var.app_port_notification
-    protocol = "HTTP"
-  }
-}
-
+# HTTP Listener (Redirect to HTTPS or serve HTTP for POC)
+# Note: Since POC doesn't include an ACM cert by default, we'll configure HTTP.
+# To use HTTPS, you would need to provision an ACM cert first.
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.main.arn
-  port              = 80
+  port              = "80"
   protocol          = "HTTP"
 
   default_action {
     type = "fixed-response"
     fixed_response {
       content_type = "text/plain"
-      message_body = "OK"
-      status_code  = "200"
+      message_body = "Order Saga API"
+      status_code  = "404"
     }
   }
 }
 
-resource "aws_lb_listener_rule" "producer" {
-  listener_arn = aws_lb_listener.http.arn
-  priority     = 100
-
-  action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.producer.arn
+# Target Groups
+resource "aws_lb_target_group" "ecs" {
+  for_each = {
+    producer     = var.app_port_producer
+    inventory    = var.app_port_inventory
+    payment      = var.app_port_payment
+    notification = var.app_port_notification
   }
 
-  condition {
-    path_pattern {
-      values = ["/api/producer/*"]
-    }
-  }
-}
+  name        = "tg-${each.key}"
+  port        = each.value
+  protocol    = "HTTP"
+  vpc_id      = aws_vpc.main.id
+  target_type = "ip"
 
-resource "aws_lb_listener_rule" "inventory" {
-  listener_arn = aws_lb_listener.http.arn
-  priority     = 110
-
-  action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.inventory.arn
-  }
-
-  condition {
-    path_pattern {
-      values = ["/api/inventory/*"]
-    }
+  health_check {
+    path                = "/api/${each.key}/health"
+    interval            = 15
+    timeout             = 5
+    healthy_threshold   = 2
+    unhealthy_threshold = 3
+    matcher             = "200"
   }
 }
 
-resource "aws_lb_listener_rule" "payment" {
+# Listener Rules
+resource "aws_lb_listener_rule" "api_rules" {
+  for_each = {
+    producer     = { priority = 10, path = "/api/producer/*" }
+    inventory    = { priority = 20, path = "/api/inventory/*" }
+    payment      = { priority = 30, path = "/api/payment/*" }
+    notification = { priority = 40, path = "/api/notification/*" }
+  }
+
   listener_arn = aws_lb_listener.http.arn
-  priority     = 120
+  priority     = each.value.priority
 
   action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.payment.arn
+    target_group_arn = aws_lb_target_group.ecs[each.key].arn
   }
 
   condition {
     path_pattern {
-      values = ["/api/payment/*"]
-    }
-  }
-}
-
-resource "aws_lb_listener_rule" "notification" {
-  listener_arn = aws_lb_listener.http.arn
-  priority     = 130
-
-  action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.notification.arn
-  }
-
-  condition {
-    path_pattern {
-      values = ["/api/notification/*"]
-    }
-  }
-}
-
-resource "aws_lb_listener_rule" "inventory_swagger" {
-  listener_arn = aws_lb_listener.http.arn
-  priority     = 200
-
-  action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.inventory.arn
-  }
-
-  condition {
-    path_pattern {
-      values = ["/swagger-ui/*"]
-    }
-  }
-}
-
-resource "aws_lb_listener_rule" "inventory_openapi" {
-  listener_arn = aws_lb_listener.http.arn
-  priority     = 210
-
-  action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.inventory.arn
-  }
-
-  condition {
-    path_pattern {
-      values = ["/v3/api-docs", "/v3/api-docs/*"]
+      values = [each.value.path]
     }
   }
 }

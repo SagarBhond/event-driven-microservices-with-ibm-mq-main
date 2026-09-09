@@ -1,49 +1,37 @@
 output "alb_dns_name" {
-  description = "DNS name of the Application Load Balancer"
+  description = "The DNS name of the ALB"
   value       = aws_lb.main.dns_name
 }
 
-output "mq_public_ip" {
-  description = "Public IP of the IBM MQ EC2 instance"
-  value       = aws_instance.mq.public_ip
-}
-
 output "mq_private_ip" {
-  description = "Private IP of the IBM MQ EC2 instance"
+  description = "The internal IP address of the IBM MQ instance"
   value       = aws_instance.mq.private_ip
 }
 
+output "mq_public_ip" {
+  description = "The public IP address of the IBM MQ instance (for Admin Console access)"
+  value       = aws_instance.mq.public_ip
+}
+
 output "pgadmin_public_ip" {
-  description = "Public IP of the pgAdmin EC2 instance"
+  description = "The public IP address of the pgAdmin instance"
   value       = aws_instance.pgadmin.public_ip
 }
 
 output "rds_endpoint" {
-  description = "RDS endpoint for PostgreSQL"
-  value       = aws_db_instance.main.address
+  description = "Endpoint for the shared RDS instance"
+  value       = aws_db_instance.rds.endpoint
 }
 
-output "health_urls" {
-  description = "Application health URLs checked after deployment"
-  value = {
-    producer     = "http://${aws_lb.main.dns_name}/api/producer/health"
-    inventory    = "http://${aws_lb.main.dns_name}/api/inventory/health"
-    payment      = "http://${aws_lb.main.dns_name}/api/payment/health"
-    notification = "http://${aws_lb.main.dns_name}/api/notification/health"
-  }
-}
+output "instructions" {
+  value = <<EOF
+Terraform has provisioned the infrastructure.
 
-output "inventory_swagger_url" {
-  description = "Inventory service Swagger UI"
-  value       = "http://${aws_lb.main.dns_name}/swagger-ui/index.html"
-}
-
-output "mq_console_url" {
-  description = "IBM MQ Web Console"
-  value       = "https://${aws_instance.mq.public_ip}:9443/ibmmq/console"
-}
-
-output "postgres_endpoint" {
-  description = "PostgreSQL RDS endpoint and port"
-  value       = "${aws_db_instance.main.address}:5432"
+Next steps:
+1. Ensure your CI/CD pipeline builds the Docker images and pushes them to ECR.
+2. Update the ECS Task Definitions via the pipeline with the correct ECR image URIs.
+3. Access the APIs using the ALB DNS Name: http://${aws_lb.main.dns_name}/api/...
+4. Access IBM MQ Admin Console at: https://${aws_instance.mq.public_ip}:9443
+5. Access pgAdmin Web UI at: http://${aws_instance.pgadmin.public_ip}:5050
+EOF
 }
