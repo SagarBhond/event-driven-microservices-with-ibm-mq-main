@@ -20,7 +20,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       AWS_REGION: ap-south-1
-      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -28,7 +27,7 @@ jobs:
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-order-saga-role
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
@@ -48,7 +47,8 @@ jobs:
               notification) app_dir="order-notification-service"; image_name="order-saga-notification" ;;
             esac
 
-            repo_uri="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${AWS_REGION}.amazonaws.com/${image_name}"
+            account_id=$(aws sts get-caller-identity --query Account --output text)
+            repo_uri="${account_id}.dkr.ecr.${AWS_REGION}.amazonaws.com/${image_name}"
 
             cd "$app_dir"
             mvn clean package -Dmaven.test.skip=true
