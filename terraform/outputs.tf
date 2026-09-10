@@ -93,6 +93,11 @@ output "mq_public_ip" {
   value       = aws_instance.mq.public_ip
 }
 
+output "mq_admin_url" {
+  description = "IBM MQ Admin Console URL"
+  value       = "https://${aws_instance.mq.public_ip}:9443"
+}
+
 output "pgadmin_public_ip" {
   description = "The public IP address of the pgAdmin instance"
   value       = aws_instance.pgadmin.public_ip
@@ -148,10 +153,11 @@ Next steps:
 13. Inventory OpenAPI JSON: ${local.service_urls.inventory.openapi}
 14. Payment OpenAPI JSON: ${local.service_urls.payment.openapi}
 15. Notification OpenAPI JSON: ${local.service_urls.notification.openapi}
-16. pgAdmin Web UI: http://${aws_instance.pgadmin.public_ip}:5050
-17. Grafana: http://${aws_instance.pgadmin.public_ip}:3000
-18. Prometheus: http://${aws_instance.pgadmin.public_ip}:9090
-19. Loki: http://${aws_instance.pgadmin.public_ip}:3100
-20. RDS endpoint: ${aws_db_instance.rds.endpoint}
+16. IBM MQ Admin Console: https://${aws_instance.mq.public_ip}:9443
+17. pgAdmin Web UI: http://${aws_instance.pgadmin.public_ip}:5050
+18. Grafana: http://${aws_instance.pgadmin.public_ip}:3000
+19. Prometheus: http://${aws_instance.pgadmin.public_ip}:9090
+20. Loki: http://${aws_instance.pgadmin.public_ip}:3100
+21. RDS endpoint: ${aws_db_instance.rds.endpoint}
 EOF
 }

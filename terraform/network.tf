@@ -139,6 +139,14 @@ resource "aws_security_group" "mq" {
     cidr_blocks = [var.your_ip]
   }
 
+  ingress {
+    description = "IBM MQ Admin Console"
+    from_port   = 9443
+    to_port     = 9443
+    protocol    = "tcp"
+    cidr_blocks = [var.your_ip]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
