@@ -113,6 +113,26 @@ output "rds_endpoint" {
   value       = aws_db_instance.rds.endpoint
 }
 
+output "monitoring_public_ip" {
+  description = "Public IP address of the Grafana, Prometheus, and Loki host"
+  value       = aws_instance.monitoring.public_ip
+}
+
+output "grafana_url" {
+  description = "Grafana dashboard URL"
+  value       = "http://${aws_instance.monitoring.public_ip}:3000"
+}
+
+output "prometheus_url" {
+  description = "Prometheus URL"
+  value       = "http://${aws_instance.monitoring.public_ip}:9090"
+}
+
+output "loki_url" {
+  description = "Loki URL"
+  value       = "http://${aws_instance.monitoring.public_ip}:3100"
+}
+
 output "instructions" {
   value = <<EOF
 Terraform has provisioned the infrastructure.
@@ -136,5 +156,8 @@ Next steps:
 16. IBM MQ Admin Console: https://${aws_instance.mq.public_ip}:9443
 17. pgAdmin Web UI: http://${aws_instance.pgadmin.public_ip}:5050
 18. RDS endpoint: ${aws_db_instance.rds.endpoint}
+19. Grafana: http://${aws_instance.monitoring.public_ip}:3000
+20. Prometheus: http://${aws_instance.monitoring.public_ip}:9090
+21. Loki: http://${aws_instance.monitoring.public_ip}:3100
 EOF
 }

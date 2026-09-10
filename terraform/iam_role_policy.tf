@@ -94,6 +94,19 @@ resource "aws_iam_role_policy_attachment" "ec2_mq_ssm" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
+resource "aws_iam_role_policy" "ec2_parameter_read" {
+  name = "order-saga-ec2-parameter-read"
+  role = aws_iam_role.ec2_mq.name
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = ["ssm:GetParameter"]
+      Resource = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/order-saga/*"
+    }]
+  })
+}
+
 resource "aws_iam_instance_profile" "ec2_mq" {
   name = "order-saga-ec2-mq-profile"
   role = aws_iam_role.ec2_mq.name

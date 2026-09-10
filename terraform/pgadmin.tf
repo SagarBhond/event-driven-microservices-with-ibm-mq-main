@@ -59,5 +59,9 @@ resource "aws_instance" "pgadmin" {
 
   depends_on = [aws_db_instance.rds]
 
+  lifecycle {
+    ignore_changes = [ami]
+  }
+
   tags = { Name = "order-saga-pgadmin" }
 }

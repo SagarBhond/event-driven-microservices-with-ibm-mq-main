@@ -57,4 +57,4 @@ for i in $(seq 1 30); do
 done
 
 sleep 30
-docker exec ibm-mq bash -lc 'runmqsc QM1 < /tmp/queues.mqsc' || true
+docker exec -i ibm-mq runmqsc QM1 < /tmp/mqm/queues.mqsc

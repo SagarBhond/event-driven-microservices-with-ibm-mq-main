@@ -37,5 +37,9 @@ resource "aws_instance" "mq" {
     mqsc_content = file("${path.module}/../mq-config/20-queues.mqsc")
   })
 
+  lifecycle {
+    ignore_changes = [ami, user_data]
+  }
+
   tags = { Name = "order-saga-mq" }
 }
