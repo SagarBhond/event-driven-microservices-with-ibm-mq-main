@@ -53,7 +53,7 @@ public class ProducerMQConfig {
         f.setConnectionFactory(cf);
         f.setMessageConverter(mc);
         f.setConcurrency(concurrency);
-        f.setSessionAcknowledgeMode(Session.CLIENT_ACKNOWLEDGE);
+        f.setSessionTransacted(true);
         f.setRecoveryInterval(5000L);
         f.setErrorHandler(t -> System.err.println("Producer listener error: " + t.getMessage()));
         return f;

@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jms.annotation.JmsListener;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Slf4j
@@ -17,6 +18,7 @@ public class OrderCompletedConsumer {
     // Notification sends here once it has sent the final notification -
     // this closes the loop: Producer -> Inventory -> Payment -> Notification -> Producer
     @JmsListener(destination = "${app.mq.completed-queue}", containerFactory = "jmsListenerContainerFactory")
+    @Transactional
     public void handleCompleted(OrderMessage order) {
 
         log.info("Order {} completed end-to-end", order.getOrderId());

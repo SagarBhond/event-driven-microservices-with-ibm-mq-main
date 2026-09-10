@@ -52,7 +52,7 @@ public class InventoryMQConfig {
         f.setConnectionFactory(cf);
         f.setMessageConverter(mc);
         f.setConcurrency(concurrency);
-        f.setSessionAcknowledgeMode(Session.CLIENT_ACKNOWLEDGE);
+        f.setSessionTransacted(true);
         // Prevents ugly connection-reset stack traces from spamming the
         // console; MQ retries the connection quietly in the background.
         f.setRecoveryInterval(5000L);

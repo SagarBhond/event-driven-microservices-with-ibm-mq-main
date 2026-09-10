@@ -8,6 +8,7 @@ import io.github.resilience4j.retry.annotation.Retry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 
@@ -28,7 +29,8 @@ public class NotificationService {
     @Retry(
             name = "notificationDbRetry"
     )
-    public String sendNotification(
+        @Transactional
+        public String sendNotification(
             String orderId,
             String status,
             double amount) {
