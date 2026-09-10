@@ -15,7 +15,7 @@ resource "aws_instance" "pgadmin" {
 
   user_data = <<-EOF
     #!/bin/bash
-    set -x
+    set -euxo pipefail
 
     # 1. Create 2GB swap file FIRST to prevent OOM
     if [ ! -f /swapfile ]; then
@@ -27,7 +27,7 @@ resource "aws_instance" "pgadmin" {
     fi
 
     # 2. Install Docker and PostgreSQL client tools
-    yum install -y docker postgresql15
+    yum install -y docker postgresql15 git
     systemctl enable docker && systemctl start docker
 
     # Install Docker Compose for the shared observability stack.
