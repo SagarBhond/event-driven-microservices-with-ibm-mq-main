@@ -1,3 +1,30 @@
+locals {
+  alb_http_url = "http://${aws_lb.main.dns_name}"
+
+  service_urls = {
+    producer = {
+      api     = "${local.alb_http_url}/api/producer"
+      swagger = "${local.alb_http_url}/api/producer/swagger-ui/index.html"
+      openapi = "${local.alb_http_url}/api/producer/v3/api-docs"
+    }
+    inventory = {
+      api     = "${local.alb_http_url}/api/inventory"
+      swagger = "${local.alb_http_url}/api/inventory/swagger-ui/index.html"
+      openapi = "${local.alb_http_url}/api/inventory/v3/api-docs"
+    }
+    payment = {
+      api     = "${local.alb_http_url}/api/payment"
+      swagger = "${local.alb_http_url}/api/payment/swagger-ui/index.html"
+      openapi = "${local.alb_http_url}/api/payment/v3/api-docs"
+    }
+    notification = {
+      api     = "${local.alb_http_url}/api/notification"
+      swagger = "${local.alb_http_url}/api/notification/swagger-ui/index.html"
+      openapi = "${local.alb_http_url}/api/notification/v3/api-docs"
+    }
+  }
+}
+
 output "alb_dns_name" {
   description = "The DNS name of the ALB"
   value       = aws_lb.main.dns_name
@@ -5,55 +32,55 @@ output "alb_dns_name" {
 
 output "api_base_url" {
   description = "Base URL for the order saga APIs"
-  value       = "http://${aws_lb.main.dns_name}"
+  value       = local.alb_http_url
 }
 
 output "producer_api_url" {
-  value = "http://${aws_lb.main.dns_name}/api/producer"
+  value = local.service_urls.producer.api
 }
 
 output "inventory_api_url" {
-  value = "http://${aws_lb.main.dns_name}/api/inventory"
+  value = local.service_urls.inventory.api
 }
 
 output "payment_api_url" {
-  value = "http://${aws_lb.main.dns_name}/api/payment"
+  value = local.service_urls.payment.api
 }
 
 output "notification_api_url" {
-  value = "http://${aws_lb.main.dns_name}/api/notification"
+  value = local.service_urls.notification.api
 }
 
 output "producer_swagger_url" {
-  value = "http://${aws_lb.main.dns_name}/api/producer/swagger-ui/index.html"
+  value = local.service_urls.producer.swagger
 }
 
 output "inventory_swagger_url" {
-  value = "http://${aws_lb.main.dns_name}/api/inventory/swagger-ui/index.html"
+  value = local.service_urls.inventory.swagger
 }
 
 output "payment_swagger_url" {
-  value = "http://${aws_lb.main.dns_name}/api/payment/swagger-ui/index.html"
+  value = local.service_urls.payment.swagger
 }
 
 output "notification_swagger_url" {
-  value = "http://${aws_lb.main.dns_name}/api/notification/swagger-ui/index.html"
+  value = local.service_urls.notification.swagger
 }
 
 output "producer_openapi_url" {
-  value = "http://${aws_lb.main.dns_name}/api/producer/v3/api-docs"
+  value = local.service_urls.producer.openapi
 }
 
 output "inventory_openapi_url" {
-  value = "http://${aws_lb.main.dns_name}/api/inventory/v3/api-docs"
+  value = local.service_urls.inventory.openapi
 }
 
 output "payment_openapi_url" {
-  value = "http://${aws_lb.main.dns_name}/api/payment/v3/api-docs"
+  value = local.service_urls.payment.openapi
 }
 
 output "notification_openapi_url" {
-  value = "http://${aws_lb.main.dns_name}/api/notification/v3/api-docs"
+  value = local.service_urls.notification.openapi
 }
 
 output "mq_private_ip" {
@@ -93,19 +120,19 @@ Terraform has provisioned the infrastructure.
 Next steps:
 1. Ensure your CI/CD pipeline builds the Docker images and pushes them to ECR.
 2. Update the ECS Task Definitions via the pipeline with the correct ECR image URIs.
-3. API base URL: http://${aws_lb.main.dns_name}
-4. Producer API: http://${aws_lb.main.dns_name}/api/producer
-5. Inventory API: http://${aws_lb.main.dns_name}/api/inventory
-6. Payment API: http://${aws_lb.main.dns_name}/api/payment
-7. Notification API: http://${aws_lb.main.dns_name}/api/notification
-8. Producer Swagger: http://${aws_lb.main.dns_name}/api/producer/swagger-ui/index.html
-9. Inventory Swagger: http://${aws_lb.main.dns_name}/api/inventory/swagger-ui/index.html
-10. Payment Swagger: http://${aws_lb.main.dns_name}/api/payment/swagger-ui/index.html
-11. Notification Swagger: http://${aws_lb.main.dns_name}/api/notification/swagger-ui/index.html
-12. Producer OpenAPI JSON: http://${aws_lb.main.dns_name}/api/producer/v3/api-docs
-13. Inventory OpenAPI JSON: http://${aws_lb.main.dns_name}/api/inventory/v3/api-docs
-14. Payment OpenAPI JSON: http://${aws_lb.main.dns_name}/api/payment/v3/api-docs
-15. Notification OpenAPI JSON: http://${aws_lb.main.dns_name}/api/notification/v3/api-docs
+3. API base URL: ${local.alb_http_url}
+4. Producer API: ${local.service_urls.producer.api}
+5. Inventory API: ${local.service_urls.inventory.api}
+6. Payment API: ${local.service_urls.payment.api}
+7. Notification API: ${local.service_urls.notification.api}
+8. Producer Swagger: ${local.service_urls.producer.swagger}
+9. Inventory Swagger: ${local.service_urls.inventory.swagger}
+10. Payment Swagger: ${local.service_urls.payment.swagger}
+11. Notification Swagger: ${local.service_urls.notification.swagger}
+12. Producer OpenAPI JSON: ${local.service_urls.producer.openapi}
+13. Inventory OpenAPI JSON: ${local.service_urls.inventory.openapi}
+14. Payment OpenAPI JSON: ${local.service_urls.payment.openapi}
+15. Notification OpenAPI JSON: ${local.service_urls.notification.openapi}
 16. IBM MQ Admin Console: https://${aws_instance.mq.public_ip}:9443
 17. pgAdmin Web UI: http://${aws_instance.pgadmin.public_ip}:5050
 18. RDS endpoint: ${aws_db_instance.rds.endpoint}

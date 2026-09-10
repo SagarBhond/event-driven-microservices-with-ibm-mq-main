@@ -39,21 +39,25 @@ locals {
       cpu    = 512
       memory = 1024
       port   = var.app_port_producer
+      db     = "order_db"
     }
     inventory = {
       cpu    = 512
       memory = 1024
       port   = var.app_port_inventory
+      db     = "inventory_db"
     }
     payment = {
       cpu    = 256
       memory = 512
       port   = var.app_port_payment
+      db     = "payment_db"
     }
     notification = {
       cpu    = 256
       memory = 512
       port   = var.app_port_notification
+      db     = "notification_db"
     }
   }
 }
@@ -89,7 +93,7 @@ resource "aws_ecs_task_definition" "app" {
         { name = "MQ_HOST", value = aws_instance.mq.private_ip },
         { name = "DB_HOST", value = aws_db_instance.rds.address },
         { name = "DB_PORT", value = "5432" },
-        { name = "DB_NAME", value = "order_db" }
+        { name = "DB_NAME", value = each.value.db }
       ]
 
       secrets = [

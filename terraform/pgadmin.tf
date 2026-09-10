@@ -1,6 +1,6 @@
 resource "aws_instance" "pgadmin" {
   ami           = data.aws_ami.amazon_linux_2023.id
-  instance_type = "t3.micro"
+  instance_type = "c7i-flex.large"
 
   # Deploy in public subnet for simple access and no NAT
   subnet_id              = aws_subnet.public[0].id
