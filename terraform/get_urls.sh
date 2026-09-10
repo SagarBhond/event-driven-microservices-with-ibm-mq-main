@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-cd "$(dirname "$0")/terraform"
+cd "$(dirname "$0")"
 
 for name in alb_dns_name mq_public_ip mq_private_ip pgadmin_public_ip rds_endpoint; do
   terraform output -raw "$name" >/dev/null
@@ -19,10 +19,10 @@ printf 'Inventory health: http://%s/api/inventory/health\n' "$alb_dns_name"
 printf 'Payment health: http://%s/api/payment/health\n' "$alb_dns_name"
 printf 'Notification health: http://%s/api/notification/health\n' "$alb_dns_name"
 printf '\nSwagger docs (via ALB):\n'
-printf 'Producer: http://%s/swagger-ui/index.html\n' "$alb_dns_name"
-printf 'Inventory: http://%s/swagger-ui/index.html\n' "$alb_dns_name"
-printf 'Payment: http://%s/swagger-ui/index.html\n' "$alb_dns_name"
-printf 'Notification: http://%s/swagger-ui/index.html\n' "$alb_dns_name"
+printf 'Producer: http://%s/api/producer/swagger-ui/index.html\n' "$alb_dns_name"
+printf 'Inventory: http://%s/api/inventory/swagger-ui/index.html\n' "$alb_dns_name"
+printf 'Payment: http://%s/api/payment/swagger-ui/index.html\n' "$alb_dns_name"
+printf 'Notification: http://%s/api/notification/swagger-ui/index.html\n' "$alb_dns_name"
 printf '\nIBM MQ Console: https://%s:9443/ibmmq/console\n' "$mq_public_ip"
 printf 'IBM MQ private IP: %s\n' "$mq_private_ip"
 printf 'pgAdmin: http://%s:5050\n' "$pgadmin_public_ip"
