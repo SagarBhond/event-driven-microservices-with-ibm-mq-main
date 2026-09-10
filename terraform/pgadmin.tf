@@ -30,6 +30,13 @@ resource "aws_instance" "pgadmin" {
     yum install -y docker postgresql15
     systemctl enable docker && systemctl start docker
 
+    # Install Docker Compose for the shared observability stack.
+    mkdir -p /usr/local/lib/docker/cli-plugins
+    curl -SL "https://github.com/docker/compose/releases/latest/download/docker-compose-linux-$(uname -m)" \
+      -o /usr/local/lib/docker/cli-plugins/docker-compose
+    chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+    ln -sf /usr/local/lib/docker/cli-plugins/docker-compose /usr/local/bin/docker-compose
+
     # 3. Fetch credentials from Parameter Store
     REGION="${var.aws_region}"
     MQ_ADMIN_PASS=$(aws ssm get-parameter --name "/order-saga/MQ_ADMIN_PASSWORD" --with-decryption --region $REGION --query "Parameter.Value" --output text)
@@ -55,12 +62,25 @@ resource "aws_instance" "pgadmin" {
       -e PGADMIN_DEFAULT_PASSWORD=$MQ_ADMIN_PASS \
       -p 5050:80 \
       dpage/pgadmin4:latest
+
+    # Run Grafana, Prometheus, Loki, and Promtail on this same host.
+    mkdir -p /home/ec2-user/app
+    if [ ! -d /home/ec2-user/app/.git ]; then
+      git clone https://github.com/SagarBhond/event-driven-microservices-with-ibm-mq-main.git /home/ec2-user/app
+    fi
+    cd /home/ec2-user/app
+    git fetch origin
+    git checkout main
+    git pull --ff-only origin main
+    sed -i "s/__ALB_DNS_NAME__/${aws_lb.main.dns_name}/g" config/prometheus.yml
+    printf 'GRAFANA_ADMIN_PASSWORD=%s\n' "$MQ_ADMIN_PASS" > .env
+    docker compose -f docker-compose.monitoring.yml up -d
   EOF
 
   depends_on = [aws_db_instance.rds]
 
   lifecycle {
-    ignore_changes = [ami]
+    ignore_changes = [ami, user_data]
   }
 
   tags = { Name = "order-saga-pgadmin" }

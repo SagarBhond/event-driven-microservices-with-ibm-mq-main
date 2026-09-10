@@ -170,6 +170,30 @@ resource "aws_security_group" "pgadmin" {
   }
 
   ingress {
+    description = "Grafana"
+    from_port   = 3000
+    to_port     = 3000
+    protocol    = "tcp"
+    cidr_blocks = [var.your_ip]
+  }
+
+  ingress {
+    description = "Prometheus"
+    from_port   = 9090
+    to_port     = 9090
+    protocol    = "tcp"
+    cidr_blocks = [var.your_ip]
+  }
+
+  ingress {
+    description = "Loki"
+    from_port   = 3100
+    to_port     = 3100
+    protocol    = "tcp"
+    cidr_blocks = [var.your_ip]
+  }
+
+  ingress {
     description = "SSH access"
     from_port   = 22
     to_port     = 22
